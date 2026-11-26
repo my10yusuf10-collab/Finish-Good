@@ -4,8 +4,6 @@
 ```
 finish-good-analysis/
 ├── index.html
-├── style.css
-├── app.js
 ├── manifest.webmanifest
 ├── service-worker.js
 ├── .nojekyll
@@ -18,7 +16,7 @@ finish-good-analysis/
 2. Klik tanda **+** (kanan atas) → **New repository**.
 3. Repository name: `finish-good-analysis`. Pilih **Public**. Klik **Create repository**.
 4. Klik **uploading an existing file**.
-5. Ekstrak ZIP dulu. Upload **isi** folder (bukan foldernya): `index.html`, `style.css`, `app.js`, `manifest.webmanifest`, `service-worker.js`, `.nojekyll`, dan folder `icons`.
+5. Ekstrak ZIP dulu. Upload **isi** folder (bukan foldernya): `index.html`, `manifest.webmanifest`, `service-worker.js`, `.nojekyll`, dan folder `icons`.
    - Di HP, upload folder `icons` sulit. Alternatif: **Add file → Create new file**, ketik nama `icons/icon-192.png` lalu upload satu per satu; atau pakai browser mode "Situs desktop"/komputer.
 6. Klik **Commit changes**.
 
@@ -50,7 +48,7 @@ Tips foto: tabel lurus (tidak miring), terang, tanpa bayangan, seluruh tabel mas
 - OCR butuh internet saat pertama kali (mengunduh mesin Tesseract ±15 MB), setelah itu tersimpan di cache.
 - Baris dengan 2 flavour dalam satu sel (mis. GSSJ dan GAPJ) otomatis ditulis `GSSJ/GAPJ`, dan nilai awal menjadi `-/-` dan `8/8`.
 - Data tersimpan di HP (localStorage), tidak dikirim ke server.
-- Update aplikasi: upload ulang file yang berubah, lalu ubah `const V='fga-v2'` di `service-worker.js` menjadi `fga-v3` agar cache diperbarui.
+- Update aplikasi: upload ulang file yang berubah, lalu ubah `const V='fga-v2'` di `service-worker.js` menjadi `fga-v5` agar cache diperbarui.
 - Jika halaman kosong/404: pastikan `index.html` ada di root repository, bukan di dalam subfolder.
 
 ## G. Jika sudah pernah memasang versi lama
@@ -62,3 +60,9 @@ Upload ulang semua file (timpa), lalu di HP buka aplikasi, tutup penuh, dan buka
 3. Tahap 2: setiap sel Flavour (11 Line × 3 Shift) dipotong dan dibaca sendiri, lalu dicocokkan dengan daftar kode dikenal (SKGA, IHJR, RGSA 120, dst).
 4. Sel kuning = hasil perlu diperiksa (koreksi otomatis ke kode terdekat, atau tidak dikenal).
 Proses memakan waktu sekitar 30–90 detik di HP.
+
+## I. Cara memastikan versi terbaru
+Di bawah judul aplikasi harus tertulis **versi 2.2 · OCR per sel**. Jika tidak tertulis, berarti HP masih memakai versi lama:
+1. Pastikan file di GitHub sudah ter-upload (buka repository, lihat tanggal commit terakhir) dan tab **Actions** menunjukkan deploy Pages berwarna hijau.
+2. Di Chrome HP: buka alamat GitHub Pages → menu ⋮ → Setelan → Setelan situs → Semua situs → cari alamat tersebut → **Hapus & reset**.
+3. Jika terpasang di layar utama: hapus ikon aplikasi, buka alamat lagi di Chrome, lalu **Install app** ulang.
