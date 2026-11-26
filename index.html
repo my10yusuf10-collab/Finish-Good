@@ -35,7 +35,7 @@ dialog{width:min(560px,94vw);border:2px solid var(--k);border-radius:10px;paddin
 </style>
 </head><body>
 <header>
- <div class="brand"><img src="icons/icon-192.png" alt=""><div><h1>FINISH GOOD ANALYSIS</h1><small class="ver">versi 2.4 · OCR per sel</small></div></div>
+ <div class="brand"><img src="icons/icon-192.png" alt=""><div><h1>FINISH GOOD ANALYSIS</h1><small class="ver">versi 2.5 · OCR per sel</small></div></div>
  <div class="top"><button id="bSet">⚙ Pengaturan</button><button id="bClear" class="ghost">KOSONGKAN DATA</button></div>
 </header>
 <div class="info">
@@ -171,7 +171,7 @@ function parse(ws){
  const nm=w=>w.t.replace(/[^A-Za-z]/g,'');
  const near=(w,k,n)=>{const t=nm(w).toUpperCase();return t.length>=4&&t.length<=k.length+2&&lev(t,k)<=n};
  const fl=ws.filter(w=>near(w,'FLAVOUR',3)),op=ws.filter(w=>near(w,'OUTPUT',2));
- /* 1. label Line (kolom kiri) -> grid baris teratur */
+ /* 1. label Line (kolom kiri) */
  const med=a=>a.slice().sort((x,y)=>x-y)[Math.floor(a.length/2)];
  let m=ws.filter(w=>/^l[il1|]ne/i.test(w.t));
  if(m.length<3)return{ok:false,msg:'Label "Line" kurang terbaca ('+m.length+'). Foto ulang lebih lurus & terang, atau isi manual.'};
@@ -183,32 +183,41 @@ function parse(ws){
  if(hy)C=C.filter(l=>l.y>hy+.01);else if(C.length>11)C.shift();
  if(C.length<3)return{ok:false,msg:'Baris Line kurang terbaca. Foto ulang atau isi manual.'};
  const lx=Math.max(...C.map(l=>l.x1))+.015;
- const df=C.slice(1).map((w,i)=>w.y-C[i].y).filter(v=>v>.008).sort((a,b)=>a-b),q=df[Math.floor(df.length/4)]||.025;
- let p=med(df.filter(v=>v<=q*1.35));
- const votes=[];
- C.forEach(L=>{let n=0;const mm=L.t.match(/^l[il1|]ne([ivxl1|]+)$/i);if(mm&&/[ivx]/i.test(mm[1]))n=roman(mm[1]);
+ const LW=C.map(L=>{let n=0;const mm=L.t.match(/^l[il1|]ne([ivxl1|]+)$/i);if(mm&&/[ivx]/i.test(mm[1]))n=roman(mm[1]);
   if(!n){const r=ws.filter(w=>w.x0>=L.x1-.01&&w.x1<lx+.02&&Math.abs(w.y-L.y)<.012&&/[IVXivx]/.test(w.t)&&roman(w.t)>0).sort((a,b)=>a.x-b.x)[0];if(r)n=roman(r.t)}
-  if(n)votes.push(L.y-(n-1)*p)});
- let y0=C[0].y;
- if(votes.length){let best=[];votes.forEach(v=>{const g=votes.filter(u=>Math.abs(u-v)<.3*p);if(g.length>best.length)best=g});y0=best.reduce((a,b)=>a+b)/best.length}
- const pts=C.map(L=>({k:Math.round((L.y-y0)/p),y:L.y})).filter(o=>o.k>=0&&o.k<11&&Math.abs(o.y-(y0+o.k*p))<.3*p);
+  return{y:L.y,n}});
+ const lmin=Math.min(...LW.map(l=>l.y)),lmax=Math.max(...LW.map(l=>l.y));
+ const CW=ws.filter(w=>w.c>=40&&w.x0>lx&&(!hy||w.y>hy+.01)&&w.y<lmax+.06&&DICT.includes(w.t.toUpperCase())).map(w=>w.y);
+ /* 2. grid 11 baris: cari (y0,p) yang paling cocok dengan label Line + kode yang terbaca (tahan label hilang) */
+ const sc=(y0,p)=>{let s=0;const hit=new Uint8Array(11);
+  for(const L of LW){const k=Math.round((L.y-y0)/p);if(k<0||k>10){s-=1;continue}const r=Math.abs(L.y-(y0+k*p));if(r>.3*p){s-=1;continue}
+   hit[k]=1;s+=2-r/p*3;if(L.n)s+=(L.n-1===k)?5:-3}
+  for(const y of CW){const k=Math.round((y-y0)/p);if(k<0||k>10)continue;const r=Math.abs(y-(y0+k*p));
+   if(r<.2*p){s+=.5;hit[k]=1}else if(Math.abs(y-(y0+(k+.5)*p))<.2*p)s+=.3}
+  for(let k=0;k<11;k++)if(!hit[k])s-=1;return s};
+ let best=-1e9,y0=lmin,p=.025;
+ const ylo=Math.max(0,hy?hy+.008:lmin-.45);
+ for(let pp=.015;pp<=.045;pp+=.0005)for(let yy=ylo;yy<=lmax;yy+=.001){const s=sc(yy,pp);if(s>best){best=s;y0=yy;p=pp}}
+ if(best<6)return{ok:false,msg:'Baris tabel tidak terdeteksi dengan yakin. Foto ulang lebih lurus & terang, atau isi manual.'};
+ const pts=LW.map(L=>({k:Math.round((L.y-y0)/p),y:L.y})).filter(o=>o.k>=0&&o.k<11&&Math.abs(o.y-(y0+o.k*p))<.3*p);
  if(pts.length>=3){const kb=pts.reduce((s,o)=>s+o.k,0)/pts.length,yb=pts.reduce((s,o)=>s+o.y,0)/pts.length,den=pts.reduce((s,o)=>s+(o.k-kb)**2,0);
-  if(den>0){p=pts.reduce((s,o)=>s+(o.k-kb)*(o.y-yb),0)/den;y0=yb-p*kb}}
+  if(den>0){const q=pts.reduce((s,o)=>s+(o.k-kb)*(o.y-yb),0)/den;if(Math.abs(q-p)<.2*p){p=q;y0=yb-p*kb}}}
  const lab=Array.from({length:11},(_,i)=>({n:i+1,y:y0+i*p}));
- /* 2. kolom Flavour: header (toleran salah baca) -> header Output -> klaster posisi kode */
- let cen,d;
+ /* 3. kolom Flavour: beberapa kandidat, dipilih yang paling banyak cocok dengan kode terbaca */
  const gapX=(a,mn)=>{const r=[];a.sort((x,y)=>x.x-y.x).forEach(w=>{if(!r.length||w.x-r[r.length-1].x>mn)r.push(w)});return r};
  const hf=gapX(fl.filter(w=>w.y<my+.03),.1).slice(0,3),oy=op.length?Math.min(...op.map(w=>w.y)):0,ho=gapX(op.filter(w=>w.y<oy+.03),.1).slice(0,3);
- if(hf.length===3){cen=hf.map(w=>w.x);const ds=hf.map(f=>{const o=ho.find(o=>o.x>f.x&&o.x-f.x<.15);return o?o.x-f.x:0}).filter(Boolean);d=ds.length?med(ds):(cen[2]-cen[0])/2*.27}
- else if(ho.length===3){d=(ho[2].x-ho[0].x)/2*.27;cen=ho.map(w=>w.x-d)}
- else{
-  const xs=ws.filter(w=>w.x0>lx&&w.c>=40&&w.y>lab[0].y-.01&&w.y<lab[10].y+.03&&/^[A-Z]{2,7}$/.test(w.t)).map(w=>w.x).sort((a,b)=>a-b),gs=[];
-  xs.forEach(v=>{const g=gs[gs.length-1];if(g&&v-g[g.length-1]<.04)g.push(v);else gs.push([v])});
+ const CD=ws.filter(w=>w.c>=40&&w.x0>lx&&w.y>y0-.3*p&&w.y<y0+10.75*p&&DICT.includes(w.t.toUpperCase()));
+ const cands=[];
+ if(hf.length===3){const c=hf.map(w=>w.x),ds=hf.map(f=>{const o=ho.find(o=>o.x>f.x&&o.x-f.x<.15);return o?o.x-f.x:0}).filter(Boolean);cands.push({cen:c,d:ds.length?med(ds):(c[2]-c[0])/2*.27})}
+ if(ho.length===3){const d=(ho[2].x-ho[0].x)/2*.27;cands.push({cen:ho.map(w=>w.x-d),d})}
+ {const xs=CD.map(w=>w.x).sort((a,b)=>a-b),gs=[];xs.forEach(v=>{const g=gs[gs.length-1];if(g&&v-g[g.length-1]<.04)g.push(v);else gs.push([v])});
   const top=gs.filter(g=>g.length>=2).sort((a,b)=>b.length-a.length).slice(0,3).sort((a,b)=>a[0]-b[0]);
-  if(top.length<3)return{ok:false,msg:'Kolom Flavour tidak terdeteksi. Foto ulang atau isi manual.'};
-  cen=top.map(g=>med(g));d=(cen[2]-cen[0])/2*.27}
+  if(top.length===3){const c=top.map(g=>med(g));cands.push({cen:c,d:(c[2]-c[0])/2*.27})}}
+ if(!cands.length)return{ok:false,msg:'Kolom Flavour tidak terdeteksi. Foto ulang atau isi manual.'};
+ const fit=c=>CD.filter(w=>c.cen.some(x=>Math.abs(w.x-x)<c.d*.55)).length;
+ let cen,d,bf=-1;cands.forEach(c=>{const f=fit(c);if(f>bf){bf=f;cen=c.cen;d=c.d}});
  /* geser pusat kolom ke posisi kode yang benar-benar terbaca */
- cen=cen.map(c=>{const a=ws.filter(w=>Math.abs(w.x-c)<d*.6&&w.y>lab[0].y-.01&&w.y<lab[10].y+.03&&DICT.includes(w.t.toUpperCase())).map(w=>w.x);return a.length>=2?med(a):c});
+ cen=cen.map(c=>{const a=CD.filter(w=>Math.abs(w.x-c)<d*.6).map(w=>w.x);return a.length>=2?med(a):c});
  /* 3. petakan kata ke sel (Line, Shift) */
  const rows=emptyOcr(),cells={};
  ws.forEach(w=>{
@@ -295,22 +304,20 @@ $('#bClear').onclick=()=>{if(confirm('Hapus semua data (hasil OCR, buku digital,
 
 /* ---------- Ekspor (digambar langsung ke canvas) ---------- */
 function pages(){
- const W=1240,H=1754,M=60,RH=48,cols=vis(),pgs=[];let cv,g,y;
- const cw=cols.length?(W-2*M-440)/cols.length:0,wd=[110,330,...cols.map(()=>cw)],hd=[S.cfg.lt,S.cfg.ft,...cols.map(c=>c.t)];
- const np=()=>{cv=document.createElement('canvas');cv.width=W;cv.height=H;g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);
-  const gr=g.createLinearGradient(0,0,W,0);gr.addColorStop(0,'#111');gr.addColorStop(1,'#c9a227');g.fillStyle=gr;g.fillRect(0,0,W,110);
-  g.textBaseline='middle';g.textAlign='left';g.fillStyle='#fff';g.font='bold 46px sans-serif';g.fillText('FINISH GOOD ANALYSIS',M,56);
-  g.fillStyle='#111';g.font='28px sans-serif';g.fillText('Hari/Tanggal: '+(S.info.day+' '+S.info.date).trim(),M,152);g.textAlign='right';g.fillText('No. Jadwal: '+S.info.no,W-M,152);
-  pgs.push(cv);y=195};
+ /* seluruh hasil dalam SATU gambar (tinggi menyesuaikan jumlah baris) */
+ const W=1240,M=60,RH=48,cols=vis(),n=S.book.reduce((s,r)=>s+r.length,0),H=Math.max(600,200+3*(RH*2+34)+n*RH+M);
+ const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');
+ g.fillStyle='#fff';g.fillRect(0,0,W,H);
+ const gr=g.createLinearGradient(0,0,W,0);gr.addColorStop(0,'#111');gr.addColorStop(1,'#c9a227');g.fillStyle=gr;g.fillRect(0,0,W,110);
+ g.textBaseline='middle';g.textAlign='left';g.fillStyle='#fff';g.font='bold 46px sans-serif';g.fillText('FINISH GOOD ANALYSIS',M,56);
+ g.fillStyle='#111';g.font='28px sans-serif';g.fillText('Hari/Tanggal: '+(S.info.day+' '+S.info.date).trim(),M,152);g.textAlign='right';g.fillText('No. Jadwal: '+S.info.no,W-M,152);
+ const cw=cols.length?(W-2*M-440)/cols.length:0,wd=[110,330,...cols.map(()=>cw)],hd=[S.cfg.lt,S.cfg.ft,...cols.map(c=>c.t)];let y=195;
  const row=(a,head)=>{let x=M;a.forEach((t,i)=>{const w=wd[i];if(head){g.fillStyle='#111';g.fillRect(x,y,w,RH)}
   g.strokeStyle='#999';g.lineWidth=1.5;g.strokeRect(x,y,w,RH);g.fillStyle=head?'#f5d76e':'#111';let s=28;g.textAlign='center';
   do{g.font=(head?'bold ':'')+s+'px sans-serif';s-=2}while(g.measureText(t).width>w-14&&s>12);g.fillText(String(t??''),x+w/2,y+RH/2+2);x+=w});y+=RH};
- np();
- S.book.forEach((rows,s)=>{
-  const bar=c=>{if(y+RH*3>H-M-30)np();g.fillStyle='#c9a227';g.fillRect(M,y,W-2*M,RH);g.fillStyle='#111';g.font='bold 30px sans-serif';g.textAlign='left';g.fillText('SHIFT '+(s+1)+(c?' (lanjutan)':''),M+14,y+RH/2);y+=RH;row(hd,1)};
-  bar(0);rows.forEach(r=>{if(y+RH>H-M-30){np();bar(1)}row([r.n,r.f,...cols.map(c=>r.v[c.id]||'')],0)});y+=34});
- if(pgs.length>1)pgs.forEach((c,i)=>{const k=c.getContext('2d');k.fillStyle='#555';k.font='24px sans-serif';k.textAlign='center';k.textBaseline='middle';k.fillText('Halaman '+(i+1)+' / '+pgs.length,W/2,H-35)});
- return pgs}
+ S.book.forEach((rows,s)=>{g.fillStyle='#c9a227';g.fillRect(M,y,W-2*M,RH);g.fillStyle='#111';g.font='bold 30px sans-serif';g.textAlign='left';g.fillText('SHIFT '+(s+1),M+14,y+RH/2);y+=RH;
+  row(hd,1);rows.forEach(r=>row([r.n,r.f,...cols.map(c=>r.v[c.id]||'')],0));y+=34});
+ return[cv]}
 function rPrev(){const b=$('#prev');b.innerHTML='';pages().forEach(c=>b.appendChild(c))}
 const blobs=cs=>Promise.all(cs.map(c=>new Promise(r=>c.toBlob(r,'image/png'))));
 const fname=()=>'FinishGood_'+(S.info.date||'jadwal').replace(/[^\w-]/g,'-');
@@ -320,13 +327,13 @@ $('#bShare').onclick=async()=>{const bs=await blobs(pages()),fs=bs.map((b,i)=>ne
  if(navigator.canShare&&navigator.canShare({files:fs})){try{await navigator.share({files:fs,title:'Finish Good Analysis'})}catch(e){}}
  else{alert('Perangkat tidak mendukung berbagi langsung. Gambar diunduh, silakan kirim lewat WhatsApp.');bs.forEach((b,i)=>dl(b,fname()+'_'+(i+1)+'.png'))}};
 $('#bPrint').onclick=()=>{const im=pages().map(c=>'<img src="'+c.toDataURL('image/jpeg',.92)+'">').join(''),w=window.open('');
- w.document.write('<style>@page{size:A4;margin:0}body{margin:0}img{width:100%;display:block;page-break-after:always}</style>'+im);w.document.close();setTimeout(()=>w.print(),600)};
+ w.document.write('<style>@page{margin:0}body{margin:0}img{width:100%;display:block;page-break-after:always}</style>'+im);w.document.close();setTimeout(()=>w.print(),600)};
 $('#bPdf').onclick=()=>{const cs=pages(),enc=new TextEncoder(),parts=[],off=[];let len=0;
  const add=d=>{const b=typeof d==='string'?enc.encode(d):d;parts.push(b);len+=b.length};
  add('%PDF-1.4\n');off[1]=len;add('1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n');
  off[2]=len;add('2 0 obj\n<</Type/Pages/Count '+cs.length+'/Kids['+cs.map((_,k)=>(3+3*k)+' 0 R').join(' ')+']>>\nendobj\n');
- cs.forEach((c,k)=>{const bin=atob(c.toDataURL('image/jpeg',.92).split(',')[1]),jb=Uint8Array.from(bin,x=>x.charCodeAt(0)),a=3+3*k,ct='q 595 0 0 842 0 0 cm /Im0 Do Q';
-  off[a]=len;add(a+' 0 obj\n<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Resources<</XObject<</Im0 '+(a+2)+' 0 R>>>>/Contents '+(a+1)+' 0 R>>\nendobj\n');
+ cs.forEach((c,k)=>{const bin=atob(c.toDataURL('image/jpeg',.92).split(',')[1]),jb=Uint8Array.from(bin,x=>x.charCodeAt(0)),a=3+3*k,ph=Math.round(595*c.height/c.width),ct='q 595 0 0 '+ph+' 0 0 cm /Im0 Do Q';
+  off[a]=len;add(a+' 0 obj\n<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 '+ph+']/Resources<</XObject<</Im0 '+(a+2)+' 0 R>>>>/Contents '+(a+1)+' 0 R>>\nendobj\n');
   off[a+1]=len;add((a+1)+' 0 obj\n<</Length '+ct.length+'>>\nstream\n'+ct+'\nendstream\nendobj\n');
   off[a+2]=len;add((a+2)+' 0 obj\n<</Type/XObject/Subtype/Image/Width '+c.width+'/Height '+c.height+'/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length '+jb.length+'>>\nstream\n');add(jb);add('\nendstream\nendobj\n')});
  const n=3+3*cs.length,xr=len;let x='xref\n0 '+n+'\n0000000000 65535 f \n';for(let i=1;i<n;i++)x+=String(off[i]).padStart(10,'0')+' 00000 n \n';
