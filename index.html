@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Finish Good Analysis</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#111111">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head><body>
+<header>
+ <div class="brand"><img src="icons/icon-192.png" alt=""><h1>FINISH GOOD ANALYSIS</h1></div>
+ <div class="top"><button id="bSet">⚙ Pengaturan</button><button id="bClear" class="ghost">KOSONGKAN DATA</button></div>
+</header>
+<div class="info">
+ <label>Hari<input id="iDay" placeholder="Kamis"></label>
+ <label>Tanggal<input id="iDate" placeholder="26.11.2026"></label>
+ <label>No. Jadwal<input id="iNo" placeholder="274"></label>
+</div>
+<nav><button data-v="ocr" class="on">1. Foto &amp; OCR</button><button data-v="book">2. Buku Digital</button><button data-v="exp">3. Ekspor</button></nav>
+<main>
+<section id="v-ocr">
+ <div class="row">
+  <label class="btn">📁 Galeri<input type="file" id="fGal" accept="image/*" hidden></label>
+  <label class="btn">📷 Kamera<input type="file" id="fCam" accept="image/*" capture="environment" hidden></label>
+ </div>
+ <img id="pv" alt="Preview foto" hidden>
+ <div class="row"><button id="bGo" class="main" disabled>PROSES FOTO</button></div>
+ <div id="st" class="st" hidden><div class="bar"><i id="pb"></i></div><span id="stt"></span></div>
+ <h2>Hasil pembacaan (bisa diedit)</h2>
+ <p class="hint">Sel kuning = OCR kurang yakin, periksa. Dua flavour dalam satu sel ditulis dengan tanda /</p>
+ <div class="sc"><table id="ocrT"><thead><tr><th>Line</th><th>Shift 1</th><th>Shift 2</th><th>Shift 3</th></tr></thead><tbody></tbody></table></div>
+ <div class="row">
+  <button id="bRe">PROSES ULANG OCR</button><button id="bFix">KOREKSI DATA</button>
+  <button id="bUse" class="main">GUNAKAN DATA</button><button id="bEmpty" class="ghost">KOSONGKAN HASIL</button>
+ </div>
+</section>
+<section id="v-book" hidden><div id="bookBox"></div></section>
+<section id="v-exp" hidden>
+ <div class="row"><button id="bPng" class="main">Ekspor PNG</button><button id="bPdf" class="main">Ekspor PDF</button><button id="bPrint">Cetak</button><button id="bShare">Bagikan ke WhatsApp</button></div>
+ <div id="prev"></div>
+</section>
+</main>
+<dialog id="dSet"><h2>Pengaturan kolom</h2><div id="setBox"></div>
+ <div class="row"><button id="bAdd">+ Tambah kolom</button><button id="bSetOk" class="main">Simpan</button></div></dialog>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="app.js"></script>
+</body></html>
