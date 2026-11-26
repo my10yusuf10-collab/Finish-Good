@@ -19,3 +19,5 @@ input.warn{background:#fff3b0}.shift h3{margin:18px 0 6px;padding:8px 12px;backg
 dialog{width:min(560px,94vw);border:2px solid var(--k);border-radius:10px;padding:14px}dialog::backdrop{background:#0008}
 .sr{display:grid;grid-template-columns:auto 1fr 70px auto auto auto;gap:4px;align-items:center;margin:6px 0}.sr button{padding:6px 9px}
 .ico{width:36px;height:36px}
+
+#ocrT{table-layout:fixed;min-width:0;width:100%}#ocrT th:first-child{width:46px}#ocrT td input{min-width:0;width:100%}

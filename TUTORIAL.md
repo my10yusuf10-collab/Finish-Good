@@ -50,5 +50,15 @@ Tips foto: tabel lurus (tidak miring), terang, tanpa bayangan, seluruh tabel mas
 - OCR butuh internet saat pertama kali (mengunduh mesin Tesseract ±15 MB), setelah itu tersimpan di cache.
 - Baris dengan 2 flavour dalam satu sel (mis. GSSJ dan GAPJ) otomatis ditulis `GSSJ/GAPJ`, dan nilai awal menjadi `-/-` dan `8/8`.
 - Data tersimpan di HP (localStorage), tidak dikirim ke server.
-- Update aplikasi: upload ulang file yang berubah, lalu ubah `const V='fga-v1'` di `service-worker.js` menjadi `fga-v2` agar cache diperbarui.
+- Update aplikasi: upload ulang file yang berubah, lalu ubah `const V='fga-v2'` di `service-worker.js` menjadi `fga-v3` agar cache diperbarui.
 - Jika halaman kosong/404: pastikan `index.html` ada di root repository, bukan di dalam subfolder.
+
+## G. Jika sudah pernah memasang versi lama
+Upload ulang semua file (timpa), lalu di HP buka aplikasi, tutup penuh, dan buka lagi 2 kali. Jika masih tampil versi lama: Chrome → Setelan situs → Hapus data situs untuk alamat GitHub Pages Anda, lalu buka lagi.
+
+## H. Cara kerja OCR versi ini
+1. Foto diubah hitam-putih adaptif, garis tabel dihapus agar tidak mengganggu.
+2. Tahap 1: seluruh halaman dibaca untuk menemukan label Line I–XI dan header Flavour (posisi X/Y).
+3. Tahap 2: setiap sel Flavour (11 Line × 3 Shift) dipotong dan dibaca sendiri, lalu dicocokkan dengan daftar kode dikenal (SKGA, IHJR, RGSA 120, dst).
+4. Sel kuning = hasil perlu diperiksa (koreksi otomatis ke kode terdekat, atau tidak dikenal).
+Proses memakan waktu sekitar 30–90 detik di HP.

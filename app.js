@@ -32,19 +32,38 @@ $('#fGal').onchange=e=>pick(e.target.files[0]);$('#fCam').onchange=e=>pick(e.tar
 $('#bGo').onclick=$('#bRe').onclick=()=>img?runOCR():alert('Pilih foto dulu.');
 const stat=(p,t)=>{$('#st').hidden=false;$('#pb').style.width=Math.round(p*100)+'%';$('#stt').textContent=t};
 
-function prep(im){const W=Math.min(2400,Math.max(1800,im.naturalWidth)),H=Math.round(im.naturalHeight*W/im.naturalWidth);
- const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.filter='grayscale(1) contrast(1.35)';x.drawImage(im,0,0,W,H);return c}
+function prep(im){
+ /* skala, abu-abu, binarisasi adaptif (tahan bayangan), lalu hapus garis tabel agar OCR tidak terganggu */
+ const W=Math.min(3000,Math.max(2000,im.naturalWidth)),H=Math.round(im.naturalHeight*W/im.naturalWidth);
+ const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d',{willReadFrequently:true});
+ x.drawImage(im,0,0,W,H);const id=x.getImageData(0,0,W,H),p=id.data,g=new Uint8Array(W*H);
+ for(let i=0;i<W*H;i++)g[i]=(p[4*i]*.299+p[4*i+1]*.587+p[4*i+2]*.114)|0;
+ const I=new Uint32Array((W+1)*(H+1));
+ for(let y=0;y<H;y++){let s=0;for(let k=0;k<W;k++){s+=g[y*W+k];I[(y+1)*(W+1)+k+1]=I[y*(W+1)+k+1]+s}}
+ const r=Math.round(W/60),b=new Uint8Array(W*H);
+ for(let y=0;y<H;y++){const y0=Math.max(0,y-r),y1=Math.min(H,y+r+1);for(let k=0;k<W;k++){
+  const x0=Math.max(0,k-r),x1=Math.min(W,k+r+1),m=(I[y1*(W+1)+x1]-I[y0*(W+1)+x1]-I[y1*(W+1)+x0]+I[y0*(W+1)+x0])/((x1-x0)*(y1-y0));
+  b[y*W+k]=g[y*W+k]<m-18?1:0}}
+ const o=new Uint8Array(b),hl=Math.round(W*.03),vl=Math.round(W*.02);
+ for(let y=0;y<H;y++){let s=-1;for(let k=0;k<=W;k++){const v=k<W&&b[y*W+k];if(v&&s<0)s=k;if(!v&&s>=0){if(k-s>=hl)for(let q=s;q<k;q++)o[y*W+q]=0;s=-1}}}
+ for(let k=0;k<W;k++){let s=-1;for(let y=0;y<=H;y++){const v=y<H&&b[y*W+k];if(v&&s<0)s=y;if(!v&&s>=0){if(y-s>=vl)for(let q=s;q<y;q++)o[q*W+k]=0;s=-1}}}
+ for(let i=0;i<W*H;i++){const v=o[i]?0:255;p[4*i]=p[4*i+1]=p[4*i+2]=v;p[4*i+3]=255}
+ x.putImageData(id,0,0);return c}
 
+let phase=1;
 async function runOCR(){
+ phase=1;
  $('#bGo').disabled=$('#bRe').disabled=true;
  try{
   stat(.02,'Menyiapkan gambar…');const cv=prep(img);
-  const w=await Tesseract.createWorker('eng',1,{logger:m=>{if(m.status==='recognizing text')stat(.15+m.progress*.8,'Membaca teks… '+Math.round(m.progress*100)+'%');else stat(.08,'Memuat OCR (butuh internet pertama kali)…')}});
+  const w=await Tesseract.createWorker('eng',1,{logger:m=>{if(phase!==1)return;if(m.status==='recognizing text')stat(.1+m.progress*.6,'Membaca teks… '+Math.round(m.progress*100)+'%');else stat(.08,'Memuat OCR (butuh internet pertama kali)…')}});
   await w.setParameters({tessedit_pageseg_mode:'11',preserve_interword_spaces:'1'});
-  const r=await w.recognize(cv);await w.terminate();
+  const r=await w.recognize(cv);
   const ws=r.data.words.filter(x=>x.text.trim()).map(x=>({t:x.text.trim(),c:x.confidence,x0:x.bbox.x0/cv.width,x1:x.bbox.x1/cv.width,y:(x.bbox.y0+x.bbox.y1)/2/cv.width}));
   ws.forEach(x=>x.x=(x.x0+x.x1)/2);
   const res=parse(ws);
+  if(res.ok){phase=2;await refine(w,cv,res)}
+  await w.terminate();
   if(res.ok){S.ocr=res.rows;save();rOcr();stat(1,'Selesai. Periksa hasil, terutama sel kuning.')}
   else stat(1,res.msg);
   readInfo(ws);
@@ -53,43 +72,93 @@ async function runOCR(){
 }
 
 /* ---------- Parser tabel berbasis koordinat ---------- */
+const DICT=['SKGA','SKKA','SSTK','SKSJ','IHBK','IHJR','IHAG','IHSJ','RAKD','RAKN','RGSD','RGSN','RGSA 120','RGAP 120','RGBS 120','RGKR 120','RGAB 120','RGSO 120','GSSJ','GAPJ','ISBL','ISLR','ISR','ISB','GS','GPD','GRS','GCIR','KA','SM','ICM','IMGA','IRPM','MKPN','MKGSN','KBGN','RBS','RGA','RISN','PGSS','PGSL','PGSSJ','PGSSS','RGPKD','PMPJ','MTLS'];
+function lev(a,b){const d=Array.from({length:a.length+1},(_,i)=>[i]);for(let j=1;j<=b.length;j++)d[0][j]=j;
+ for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length]}
+function fix(s){ /* koreksi ke daftar kode dikenal hanya jika ada satu kandidat berjarak 1 */
+ if(DICT.includes(s))return[s,0];
+ const c=DICT.filter(k=>lev(s,k)===1);return c.length===1?[c[0],1]:[s,1]}
 function roman(t){t=t.toUpperCase().replace(/[L1|!]/g,'I');return ROM.indexOf(t)}
 function parse(ws){
- const fl=ws.filter(w=>/^flavou?r$/i.test(w.t.replace(/[^A-Za-z]/g,''))),op=ws.filter(w=>/^output$/i.test(w.t.replace(/[^A-Za-z]/g,'')));
- let cen,d;
- if(fl.length){const my=Math.min(...fl.map(w=>w.y));const h=fl.filter(w=>w.y<my+.03).sort((a,b)=>a.x-b.x).slice(0,3);
-  if(h.length===3){cen=h.map(w=>w.x);const ds=h.map(f=>{const o=op.filter(o=>o.x>f.x&&Math.abs(o.y-f.y)<.03).sort((a,b)=>a.x-b.x)[0];return o?o.x-f.x:0}).filter(Boolean);
-   d=ds.length?ds.reduce((a,b)=>a+b)/ds.length:(cen[1]-cen[0])/2.6}}
- if(!cen)return{ok:false,msg:'Header tabel (Flavour ×3) tidak terbaca. Foto ulang lebih lurus & terang, atau isi manual.'};
- const left=cen[0]-d*.6;
- /* label Line di kolom kiri */
- let lab=ws.filter(w=>w.x1<left+.01&&/^l[il1|]ne/i.test(w.t)).sort((a,b)=>a.y-b.y);
+ const nm=w=>w.t.replace(/[^A-Za-z]/g,'');
+ const fl=ws.filter(w=>/^flavou?r$/i.test(nm(w))),op=ws.filter(w=>/^output$/i.test(nm(w)));
+ /* 1. label Line (kolom kiri) */
+ let m=ws.filter(w=>/^l[il1|]ne/i.test(w.t));
+ if(m.length<3)return{ok:false,msg:'Label "Line" kurang terbaca ('+m.length+'). Foto ulang lebih lurus & terang, atau isi manual.'};
+ const mx=m.map(w=>w.x).sort((a,b)=>a-b)[Math.floor(m.length/2)];
+ let lab=m.filter(w=>Math.abs(w.x-mx)<.05).sort((a,b)=>a.y-b.y);
  lab=lab.filter((w,i)=>!i||w.y-lab[i-1].y>.012);
- if(lab.length<3)return{ok:false,msg:'Label "Line" kurang terbaca ('+lab.length+'). Foto ulang atau isi manual.'};
- const p=lab.slice(1).map((w,i)=>w.y-lab[i].y).sort((a,b)=>a-b)[Math.floor((lab.length-1)/2)];
- lab.forEach((L,i)=>{let n=0;const m=L.t.match(/^l[il1|]ne([ivxl1|]+)$/i);if(m)n=roman(m[1]);
-  if(!n){const r=ws.filter(w=>w.x0>=L.x1-.01&&w.x1<left+.01&&Math.abs(w.y-L.y)<p*.4&&roman(w.t)>0).sort((a,b)=>a.x-b.x)[0];if(r)n=roman(r.t)}
-  L.n=n||i+1});
+ ws.filter(w=>/^[IVXl1|]{1,4}$/.test(w.t)&&w.x>mx+.008&&w.x<mx+.05&&roman(w.t)>0&&!lab.some(l=>Math.abs(l.y-w.y)<.012)).forEach(w=>lab.push({...w,t:'Line'+w.t}));
+ lab.sort((a,b)=>a.y-b.y);
+ let hy=fl.length?Math.max(...fl.filter(w=>w.y<lab[Math.min(2,lab.length-1)].y).map(w=>w.y),0):0;
+ if(hy)lab=lab.filter(l=>l.y>hy+.01);else if(lab.length>11)lab.shift();
+ if(lab.length<3)return{ok:false,msg:'Baris Line kurang terbaca. Foto ulang atau isi manual.'};
+  const lx=Math.max(...lab.map(l=>l.x1))+.015;
+ /* 2. kolom Flavour: dari header; cadangan: klaster posisi X kode huruf */
+ let cen,d;
+ const my=fl.length?Math.min(...fl.map(w=>w.y)):0,h=fl.filter(w=>w.y<my+.03).sort((a,b)=>a.x-b.x).slice(0,3);
+ if(h.length===3){cen=h.map(w=>w.x);const ds=h.map(f=>{const o=op.filter(o=>o.x>f.x&&Math.abs(o.y-f.y)<.03).sort((a,b)=>a.x-b.x)[0];return o?o.x-f.x:0}).filter(Boolean);
+  d=ds.length?ds.reduce((a,b)=>a+b)/ds.length:(cen[1]-cen[0])*.27}
+ else{
+  const xs=ws.filter(w=>w.x0>lx&&w.y>lab[0].y-.01&&w.y<lab[lab.length-1].y+.03&&/^[A-Z]{2,7}$/.test(w.t)).map(w=>w.x).sort((a,b)=>a-b);
+  if(xs.length<4)return{ok:false,msg:'Kolom Flavour tidak terdeteksi. Foto ulang atau isi manual.'};
+  cen=[xs[0],(xs[0]+xs[xs.length-1])/2,xs[xs.length-1]];
+  for(let it=0;it<12;it++){const g=[[],[],[]];xs.forEach(v=>g[cen.map(c=>Math.abs(c-v)).indexOf(Math.min(...cen.map(c=>Math.abs(c-v))))].push(v));
+   cen=g.map((a,i)=>a.length?a.reduce((x,y)=>x+y)/a.length:cen[i])}
+  d=(cen[2]-cen[0])/2*.27}
+ /* nomor Line dari angka romawi, lalu cocokkan ke grid baris yang jaraknya teratur (tahan label yang hilang/salah baca) */
+ const med=a=>a.slice().sort((x,y)=>x-y)[Math.floor(a.length/2)],known=[];
+ lab.forEach(L=>{let n=0;const mm=L.t.match(/^l[il1|]ne([ivxl1|]+)$/i);if(mm)n=roman(mm[1]);
+  if(!n){const r=ws.filter(w=>w.x0>=L.x1-.01&&w.x1<lx+.02&&Math.abs(w.y-L.y)<.012&&roman(w.t)>0).sort((a,b)=>a.x-b.x)[0];if(r)n=roman(r.t)}
+  if(n)known.push({n,y:L.y})});
+ let p,y0;
+ if(known.length>=2){const ps=[];known.forEach(a=>known.forEach(b=>{if(b.n>a.n)ps.push((b.y-a.y)/(b.n-a.n))}));p=med(ps);y0=med(known.map(k=>k.y-(k.n-1)*p))}
+ else{p=med(lab.slice(1).map((w,i)=>w.y-lab[i].y));y0=lab[0].y}
+ lab=Array.from({length:11},(_,i)=>({n:i+1,y:y0+i*p}));
+ /* 3. petakan kata ke sel (Line, Shift) */
  const rows=emptyOcr(),cells={};
  ws.forEach(w=>{
   const j=cen.findIndex(c=>Math.abs(w.x-c)<d*.55);if(j<0)return;
-  if(/^flavou?r$/i.test(w.t))return;
-  if(w.y<lab[0].y-p*.5||w.y>lab[lab.length-1].y+p*1.0)return;
+  if(/^flavou?r$/i.test(nm(w)))return;
+  if(w.c<30&&!DICT.includes(w.t.toUpperCase()))return;
+  if(w.y<lab[0].y-p*.5||w.y>lab[lab.length-1].y+p)return;
   let L=null;lab.forEach(l=>{if(l.y<=w.y+p*.3)L=l});if(!L)return;
   (cells[L.n+'_'+j]=cells[L.n+'_'+j]||[]).push(w)});
  Object.entries(cells).forEach(([k,list])=>{
-  const [n,j]=k.split('_').map(Number);const row=rows.find(r=>r.n===n);if(!row)return;
+  const[n,j]=k.split('_').map(Number),row=rows.find(r=>r.n===n);if(!row)return;
   list.sort((a,b)=>a.y-b.y);const lines=[];
   list.forEach(w=>{const l=lines.find(l=>Math.abs(l.y-w.y)<p*.3);if(l)l.w.push(w);else lines.push({y:w.y,w:[w]})});
-  let unsure=false;const codes=[];
+  let un=false;const codes=[];
   lines.forEach(l=>{l.w.sort((a,b)=>a.x-b.x);
-   let s=l.w.map(w=>w.t.toUpperCase().replace(/[^A-Z0-9]/g,'')).filter(Boolean).join(' ');
-   s=s.replace(/^(\S+)/,m=>m.replace(/0/g,'O').replace(/1/g,'I').replace(/5/g,'S'));
+   const ts=l.w.map(w=>w.t.toUpperCase().replace(/[^A-Z0-9]/g,'')).filter(t=>t.length>1);
+   if(!ts.length||/^\d+$/.test(ts[0]))return;
+   let s=ts.join(' ').replace(/^([A-Z]{2,7})(\d{2,3})$/,'$1 $2').replace(/^(\S+)/,q=>/[A-Z]/.test(q)?q.replace(/0/g,'O').replace(/1/g,'I').replace(/5/g,'S'):q);
    if(!s)return;
-   if(!/^[A-Z]{2,7}( \d{2,3})?$/.test(s)||Math.min(...l.w.map(w=>w.c))<60)unsure=true;
-   codes.push(s)});
-  row.s[j]={t:codes.join('/'),u:unsure?1:0}});
- return{ok:true,rows}}
+   const parts=s.split(' ');if(parts.length>1&&!/^\d{2,3}$/.test(parts[parts.length-1]))s=parts.reduce((a,b)=>b.length>a.length?b:a);
+   const lowc=Math.min(...l.w.map(w=>w.c))<60,[f,c]=fix(s);
+   if(c||lowc)un=true;codes.push(f)});
+  row.s[j]={t:[...new Set(codes)].join('/'),u:un?1:0}});
+ return{ok:true,rows,cen,d,lab,p}}
+
+/* Tahap 2: baca ulang setiap sel Flavour satu per satu (jauh lebih akurat daripada satu halaman penuh) */
+const clean=s=>{s=s.toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim().replace(/^([A-Z]{2,7})(\d{2,3})$/,'$1 $2');
+ let t=s.split(' ').filter(q=>q.length>1);while(t.length&&/^\d+$/.test(t[0]))t.shift();s=t.join(' ');t=s.split(' ');if(t.length>1&&!/^\d{2,3}$/.test(t[t.length-1]))s=t.reduce((a,b)=>b.length>a.length?b:a);
+ return s.replace(/^(\S+)/,q=>/[A-Z]/.test(q)?q.replace(/0/g,'O').replace(/1/g,'I').replace(/5/g,'S'):q)};
+async function refine(w,cv,res){
+ const{cen,d,lab,p}=res,W=cv.width,x=cv.getContext('2d',{willReadFrequently:true}),tot=lab.length*3;let k=0;
+ await w.setParameters({tessedit_pageseg_mode:'6',tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 '});
+ for(const L of lab)for(let j=0;j<3;j++){
+  stat(.7+.29*(k++/tot),'Memeriksa sel '+k+'/'+tot+'…');
+  const x0=Math.max(0,Math.round((cen[j]-d*.5)*W)),x1=Math.min(W,Math.round((cen[j]+d*.6)*W)),y0=Math.max(0,Math.round((L.y-.3*p)*W)),y1=Math.min(cv.height,Math.round((L.y+.75*p)*W)),cw=x1-x0,ch=y1-y0;
+  if(cw<10||ch<10)continue;
+  const px=x.getImageData(x0,y0,cw,ch).data;let ink=0;for(let i=0;i<px.length;i+=4)if(px[i]<128)ink++;
+  const cell=res.rows[L.n-1].s[j];
+  if(ink/(cw*ch)<.006){cell.t='';cell.u=0;continue}
+  const t=document.createElement('canvas');t.width=cw+60;t.height=ch+60;const tx=t.getContext('2d');tx.fillStyle='#fff';tx.fillRect(0,0,t.width,t.height);tx.drawImage(cv,x0,y0,cw,ch,30,30,cw,ch);
+  const r=await w.recognize(t),codes=[];let un=false;
+  r.data.text.split('\n').forEach(l=>{const s=clean(l);if(s.length<2||/^\d+$/.test(s))return;const[f,c]=fix(s);if(c)un=true;if(!codes.includes(f))codes.push(f)});
+  const a=codes.join('/'),b=cell.t,ok=q=>!!q&&q.split('/').every(c=>DICT.includes(c)),rt=ink/(cw*ch);
+  if(a&&!un){cell.t=a;cell.u=0}else if(ok(b)){cell.u=0}else if(a){cell.t=a;cell.u=1}else if(b){cell.u=1}else{cell.t='';cell.u=rt>.02?1:0}}}
 
 function readInfo(ws){
  const dt=ws.find(w=>/^\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}$/.test(w.t));if(dt)S.info.date=dt.t;
