@@ -62,7 +62,14 @@ Upload ulang semua file (timpa), lalu di HP buka aplikasi, tutup penuh, dan buka
 Proses memakan waktu sekitar 30–90 detik di HP.
 
 ## I. Cara memastikan versi terbaru
-Di bawah judul aplikasi harus tertulis **versi 2.3 · OCR per sel**. Jika tidak tertulis, berarti HP masih memakai versi lama:
+Di bawah judul aplikasi harus tertulis **versi 2.6 · OCR per sel**. Jika tidak tertulis, berarti HP masih memakai versi lama:
 1. Pastikan file di GitHub sudah ter-upload (buka repository, lihat tanggal commit terakhir) dan tab **Actions** menunjukkan deploy Pages berwarna hijau.
 2. Di Chrome HP: buka alamat GitHub Pages → menu ⋮ → Setelan → Setelan situs → Semua situs → cari alamat tersebut → **Hapus & reset**.
 3. Jika terpasang di layar utama: hapus ikon aplikasi, buka alamat lagi di Chrome, lalu **Install app** ulang.
+
+## J. Rapikan & pangkas otomatis (versi 2.6)
+PROSES FOTO sekarang berjalan 3 tahap:
+1. **Merapikan:** foto diluruskan otomatis (miring hingga ±4°), dibuat hitam-putih, garis tabel dihapus. Aplikasi lalu mencari tabel.
+2. **Memangkas:** hanya area tabel yang diambil dari foto asli, dibuang bagian judul, tanda tangan, dan keterangan bawah, lalu diperbesar dan dibaca ulang.
+3. **Memeriksa sel:** setiap sel Flavour dibaca satu per satu.
+Hasil rapi dan kotak area baca bisa dilihat di panel "Lihat foto yang sudah dirapikan & dipangkas". Waktu proses sekitar 1–2 menit di HP.
