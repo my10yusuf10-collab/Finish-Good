@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Finish Good Analysis</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#111111">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+:root{--k:#111;--g:#c9a227;--g2:#f5d76e;--bg:#fffdf6;--ln:#ddd5bd}
+*{box-sizing:border-box}body{margin:0;font:16px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--k);padding-bottom:40px}
+header{background:linear-gradient(90deg,#111,#c9a227);color:#fff;padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:5}
+.brand{display:flex;align-items:center;gap:8px}.brand img{width:36px;height:36px;border-radius:8px}h1{font-size:18px;margin:0;letter-spacing:.5px}
+h2{font-size:17px;margin:18px 0 4px}.hint{margin:0 0 8px;color:#6b6347;font-size:13px}
+button,.btn{font:inherit;font-weight:600;border:1px solid var(--k);background:#fff;color:var(--k);padding:10px 14px;border-radius:8px;cursor:pointer;display:inline-block}
+button.main{background:linear-gradient(90deg,#111,#b8891a);color:#fff;border:0}button.ghost{background:transparent;color:inherit;border-color:currentColor}
+button:disabled{opacity:.45}header button{background:rgba(255,255,255,.12);color:#fff;border-color:#fff8}
+.info{display:flex;gap:8px;padding:10px 12px;flex-wrap:wrap;border-bottom:1px solid var(--ln)}.info label{flex:1;min-width:110px;font-size:12px;color:#6b6347}
+input{font:inherit;width:100%;padding:8px;border:1px solid var(--ln);border-radius:6px;background:#fff}
+nav{display:flex;border-bottom:2px solid var(--k)}nav button{flex:1;border:0;border-radius:0;background:transparent;padding:12px 4px;font-size:14px}nav .on{background:var(--k);color:var(--g2)}
+main{padding:12px;max-width:1000px;margin:auto}.row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+#pv{max-width:100%;max-height:320px;border:1px solid var(--ln);border-radius:8px;display:block;margin:auto}
+.sc{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:480px}th,td{border:1px solid var(--ln);padding:3px;text-align:center}
+th{background:var(--k);color:var(--g2);padding:8px;font-size:14px}td input{border:0;text-align:center;font-weight:600;min-width:70px;padding:8px 4px;background:transparent}
+input.warn{background:#fff3b0}.shift h3{margin:18px 0 6px;padding:8px 12px;background:linear-gradient(90deg,#111,#c9a227);color:#fff;border-radius:6px}
+.st{margin:8px 0;font-size:14px}.bar{height:8px;background:#eee;border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#111,#c9a227)}
+#prev canvas{width:100%;border:1px solid var(--ln);margin:8px 0;background:#fff}
+dialog{width:min(560px,94vw);border:2px solid var(--k);border-radius:10px;padding:14px}dialog::backdrop{background:#0008}
+.sr{display:grid;grid-template-columns:auto 1fr 70px auto auto auto;gap:4px;align-items:center;margin:6px 0}.sr button{padding:6px 9px}
+.ico{width:36px;height:36px}
+
+#ocrT{table-layout:fixed;min-width:0;width:100%}#ocrT th:first-child{width:46px}#ocrT td input{min-width:0;width:100%}
+.ver{font-size:11px;opacity:.85;display:block}
+
+</style>
+</head><body>
+<header>
+ <div class="brand"><img src="icons/icon-192.png" alt=""><div><h1>FINISH GOOD ANALYSIS</h1><small class="ver">versi 2.7 · OCR per sel</small></div></div>
+ <div class="top"><button id="bSet">⚙ Pengaturan</button><button id="bClear" class="ghost">KOSONGKAN DATA</button></div>
+</header>
+<div class="info">
+ <label>Hari<input id="iDay" placeholder="Kamis"></label>
+ <label>Tanggal<input id="iDate" placeholder="26.11.2026"></label>
+ <label>No. Jadwal<input id="iNo" placeholder="274"></label>
+</div>
+<nav><button data-v="ocr" class="on">1. Foto &amp; OCR</button><button data-v="book">2. Buku Digital</button><button data-v="exp">3. Ekspor</button></nav>
+<main>
+<section id="v-ocr">
+ <div class="row">
+  <label class="btn">📁 Galeri<input type="file" id="fGal" accept="image/*" hidden></label>
+  <label class="btn">📷 Kamera<input type="file" id="fCam" accept="image/*" capture="environment" hidden></label>
+ </div>
+ <img id="pv" alt="Preview foto" hidden>
+ <div class="row"><button id="bGo" class="main" disabled>PROSES FOTO</button></div>
+ <div id="st" class="st" hidden><div class="bar"><i id="pb"></i></div><span id="stt"></span></div>
+ <details id="dbgBox" hidden><summary>Lihat foto yang sudah dirapikan &amp; dipangkas (kotak merah = area baca)</summary><canvas id="dbg" style="width:100%;border:1px solid #ddd5bd"></canvas></details>
+ <h2>Hasil pembacaan (bisa diedit)</h2>
+ <p class="hint">Sel kuning = OCR kurang yakin, periksa. Dua flavour dalam satu sel ditulis dengan tanda /</p>
+ <div class="sc"><table id="ocrT"><thead><tr><th>Line</th><th>Shift 1</th><th>Shift 2</th><th>Shift 3</th></tr></thead><tbody></tbody></table></div>
+ <div class="row">
+  <button id="bRe">PROSES ULANG OCR</button><button id="bFix">KOREKSI DATA</button>
+  <button id="bUse" class="main">GUNAKAN DATA</button><button id="bEmpty" class="ghost">KOSONGKAN HASIL</button>
+ </div>
+</section>
+<section id="v-book" hidden><div id="bookBox"></div></section>
+<section id="v-exp" hidden>
+ <div class="row"><button id="bPng" class="main">Ekspor PNG</button><button id="bPdf" class="main">Ekspor PDF</button><button id="bPrint">Cetak</button><button id="bShare">Bagikan ke WhatsApp</button></div>
+ <div id="prev"></div>
+</section>
+</main>
+<dialog id="dSet"><h2>Pengaturan kolom</h2><div id="setBox"></div>
+ <div class="row"><button id="bAdd">+ Tambah kolom</button><button id="bSetOk" class="main">Simpan</button></div></dialog>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script>
+'use strict';
+const $=s=>document.querySelector(s),KEY='fga_v1';
+const ROM=['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI'];
+const emptyOcr=()=>Array.from({length:11},(_,i)=>({n:i+1,s:[0,1,2].map(()=>({t:'',u:0}))}));
+const fresh=()=>({cfg:{lt:'Line',ft:'Flavour',cols:[{id:'c1',t:'Kolom 1',d:'-',on:1},{id:'c2',t:'Kolom 2',d:'8',on:1},{id:'c3',t:'Manual 1',d:'',on:1},{id:'c4',t:'Manual 2',d:'',on:1}]},info:{day:'',date:'',no:''},ocr:emptyOcr(),book:[[],[],[]]});
+let S;try{S=Object.assign(fresh(),JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){S=fresh()}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const vis=()=>S.cfg.cols.filter(c=>c.on);
+
+/* ---------- Tab & info ---------- */
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+ ['ocr','book','exp'].forEach(v=>$('#v-'+v).hidden=v!==b.dataset.v);
+ if(b.dataset.v==='book')rBook();if(b.dataset.v==='exp')rPrev()});
+[['iDay','day'],['iDate','date'],['iNo','no']].forEach(([id,k])=>{$('#'+id).value=S.info[k];$('#'+id).oninput=e=>{S.info[k]=e.target.value;save()}});
+
+/* ---------- Tabel hasil OCR ---------- */
+function rOcr(){$('#ocrT tbody').innerHTML=S.ocr.map((r,i)=>`<tr><th>${r.n}</th>${r.s.map((c,j)=>`<td><input data-i="${i}" data-j="${j}" class="${c.u?'warn':''}" value="${esc(c.t)}" placeholder="-"></td>`).join('')}</tr>`).join('')}
+$('#ocrT').oninput=e=>{const t=e.target;if(t.dataset.i==null)return;const c=S.ocr[t.dataset.i].s[t.dataset.j];c.t=t.value.toUpperCase();c.u=0;t.classList.remove('warn');save()};
+$('#bFix').onclick=()=>{const w=document.querySelector('#ocrT input.warn')||document.querySelector('#ocrT input');w.scrollIntoView({block:'center'});w.focus()};
+$('#bEmpty').onclick=()=>{S.ocr=emptyOcr();save();rOcr()};
+$('#bUse').onclick=()=>{
+ S.book=[0,1,2].map(s=>S.ocr.filter(r=>r.s[s].t.trim()).map(r=>{const f=r.s[s].t.trim(),n=f.split('/').length,v={};
+  S.cfg.cols.forEach(c=>v[c.id]=c.d===''?'':Array(n).fill(c.d).join('/'));return{n:r.n,f,v}}));
+ save();document.querySelector('nav [data-v=book]').click()};
+
+/* ---------- Foto ---------- */
+let img=null;
+function pick(f){if(!f)return;const u=URL.createObjectURL(f),im=new Image();im.onload=()=>{img=im;$('#pv').src=u;$('#pv').hidden=false;$('#bGo').disabled=false};im.src=u}
+$('#fGal').onchange=e=>pick(e.target.files[0]);$('#fCam').onchange=e=>pick(e.target.files[0]);
+$('#bGo').onclick=$('#bRe').onclick=()=>img?runOCR():alert('Pilih foto dulu.');
+const stat=(p,t)=>{$('#st').hidden=false;$('#pb').style.width=Math.round(p*100)+'%';$('#stt').textContent=t};
+
+function bin(c,W,H){
+ const x=c.getContext('2d',{willReadFrequently:true}),id=x.getImageData(0,0,W,H),p=id.data,g=new Uint8Array(W*H);
+ for(let i=0;i<W*H;i++)g[i]=(p[4*i]*.299+p[4*i+1]*.587+p[4*i+2]*.114)|0;
+ const I=new Uint32Array((W+1)*(H+1));
+ for(let y=0;y<H;y++){let s=0;for(let k=0;k<W;k++){s+=g[y*W+k];I[(y+1)*(W+1)+k+1]=I[y*(W+1)+k+1]+s}}
+ const r=Math.round(W/60),b=new Uint8Array(W*H);
+ for(let y=0;y<H;y++){const y0=Math.max(0,y-r),y1=Math.min(H,y+r+1);for(let k=0;k<W;k++){
+  const x0=Math.max(0,k-r),x1=Math.min(W,k+r+1),m=(I[y1*(W+1)+x1]-I[y0*(W+1)+x1]-I[y1*(W+1)+x0]+I[y0*(W+1)+x0])/((x1-x0)*(y1-y0));
+  b[y*W+k]=g[y*W+k]<m-18?1:0}}
+ return{x,id,p,b}}
+/* kemiringan foto (derajat->radian): cari sudut yang membuat baris teks paling tajam */
+function skew(b,W,H){
+ const f=Math.max(1,Math.round(W/600)),sw=Math.floor(W/f),sh=Math.floor(H/f),m=new Uint8Array(sw*sh);
+ for(let y=0;y<sh*f;y++)for(let k=0;k<sw*f;k++)if(b[y*W+k])m[((y/f)|0)*sw+((k/f)|0)]=1;
+ const pts=[];for(let y=0;y<sh;y++)for(let k=0;k<sw;k++)if(m[y*sw+k])pts.push(k,y);
+ const sc=a=>{const t=Math.tan(a*Math.PI/180),r=new Float64Array(sh+sw+8);for(let i=0;i<pts.length;i+=2)r[Math.round(pts[i+1]-pts[i]*t)+sw+4]++;let s=0;for(let i=1;i<r.length;i++)s+=(r[i]-r[i-1])**2;return s};
+ let best=0,bs=-1;for(let a=-4;a<=4.001;a+=.25){const s=sc(a);if(s>bs){bs=s;best=a}}
+ for(let a=best-.25;a<=best+.251;a+=.05){const s=sc(a);if(s>bs){bs=s;best=a}}
+ return best*Math.PI/180}
+function finish(S,W,H){
+ const{x,id,p,b}=S,o=new Uint8Array(b),hl=Math.round(W*.018),vl=Math.round(W*.02);
+ for(let y=0;y<H;y++){let s=-1;for(let k=0;k<=W;k++){const v=k<W&&b[y*W+k];if(v&&s<0)s=k;if(!v&&s>=0){if(k-s>=hl)for(let q=s;q<k;q++)o[y*W+q]=0;s=-1}}}
+ for(let k=0;k<W;k++){let s=-1;for(let y=0;y<=H;y++){const v=y<H&&b[y*W+k];if(v&&s<0)s=y;if(!v&&s>=0){if(y-s>=vl)for(let q=s;q<y;q++)o[q*W+k]=0;s=-1}}}
+ for(let i=0;i<W*H;i++){const v=o[i]?0:255;p[4*i]=p[4*i+1]=p[4*i+2]=v;p[4*i+3]=255}
+ x.putImageData(id,0,0)}
+function prep(im){
+ /* skala, luruskan, binarisasi adaptif (tahan bayangan), lalu hapus garis tabel agar OCR tidak terganggu */
+ const W=Math.min(3000,Math.max(2000,im.naturalWidth)),H=Math.round(im.naturalHeight*W/im.naturalWidth);
+ let c=document.createElement('canvas');c.width=W;c.height=H;c.getContext('2d',{willReadFrequently:true}).drawImage(im,0,0,W,H);
+ let S=bin(c,W,H);const a=skew(S.b,W,H);
+ if(Math.abs(a)>.0035){const c2=document.createElement('canvas');c2.width=W;c2.height=H;const x2=c2.getContext('2d',{willReadFrequently:true});
+  x2.fillStyle='#fff';x2.fillRect(0,0,W,H);x2.translate(W/2,H/2);x2.rotate(-a);x2.drawImage(c,-W/2,-H/2);c=c2;S=bin(c,W,H)}
+ finish(S,W,H);c.meta={W,H,a};return c}
+/* pangkas otomatis sampai garis hitam tepi tabel, diperbesar ke lebar 3000 px */
+function render(im,meta,bx,CW){
+ const{W,H,a}=meta,x0=bx.x0*W,y0=bx.y0*W,bw=(bx.x1-bx.x0)*W,bh=(bx.y1-bx.y0)*W,k=CW/bw,CH=Math.round(bh*k);
+ if(!(bw>50&&bh>50&&CH>150&&CH<4500))throw new Error('area pangkas tidak valid');
+ const c=document.createElement('canvas');c.width=CW;c.height=CH;const x=c.getContext('2d',{willReadFrequently:true});
+ x.imageSmoothingQuality='high';x.fillStyle='#fff';x.fillRect(0,0,CW,CH);x.scale(k,k);x.translate(-x0,-y0);x.translate(W/2,H/2);x.rotate(-a);x.drawImage(im,-W/2,-H/2,W,H);
+ return{c,k,x0,y0,CH}}
+/* cari 4 garis tepi tabel (kiri, kanan, atas, bawah) pada jendela di sekitar posisi perkiraan */
+function tightEdges(b,W,H,w){
+ const cl=(v,m)=>Math.max(0,Math.min(m-1,Math.round(v))),cd=new Uint32Array(W),rd=new Uint32Array(H);
+ const y0=cl(w.ry[0],H),y1=cl(w.ry[1],H),x0=cl(w.cx[0],W),x1=cl(w.cx[1],W);
+ for(let y=y0;y<=y1;y++)for(let x=0;x<W;x++)if(b[y*W+x])cd[x]++;
+ for(let y=0;y<H;y++)for(let x=x0;x<=x1;x++)if(b[y*W+x])rd[y]++;
+ const pick=(prof,lo,hi,span,mode)=>{lo=cl(lo,prof.length);hi=cl(hi,prof.length);const s=[];let mx=0;
+  for(let i=lo+1;i<hi;i++){const v=(prof[i-1]+prof[i]+prof[i+1])/3;s[i]=v;if(v>mx)mx=v}
+  if(mx<.3*span)return(lo+hi)>>1;
+  let r=(lo+hi)>>1;
+  if(mode==='first'){for(let i=lo+1;i<hi;i++)if(s[i]>=.75*mx){r=i;break}}
+  else if(mode==='last'){for(let i=hi-1;i>lo;i--)if(s[i]>=.75*mx){r=i;break}}
+  else{let bv=-1;for(let i=lo+1;i<hi;i++)if(s[i]>bv){bv=s[i];r=i}}
+  return r};
+ return{l:pick(cd,w.l[0],w.l[1],y1-y0,'max'),r:pick(cd,w.r[0],w.r[1],y1-y0,'max'),t:pick(rd,w.t[0],w.t[1],x1-x0,'first'),bt:pick(rd,w.bt[0],w.bt[1],x1-x0,'last')}}
+function cropTable(im,meta,res){
+ const{W}=meta,{cen,d,lab,p}=res;
+ const rb={x0:Math.max(0,res.x0-.06),x1:Math.min(1,cen[2]+4.2*d),y0:Math.max(0,lab[0].y-2.8*p),y1:lab[10].y+2.3*p};
+ const R=render(im,meta,rb,3000),S=bin(R.c,3000,R.CH),X=v=>(v*W-R.x0)*R.k,Y=v=>(v*W-R.y0)*R.k;
+ const win={cx:[X(res.x0-.027),X(cen[2]+3.2*d)],ry:[Y(lab[0].y-1.8*p),Y(lab[10].y+.9*p)],l:[X(res.x0-.045),X(res.x0-.012)],r:[X(cen[2]+2.8*d),X(cen[2]+3.55*d)],t:[Y(lab[0].y-2.4*p),Y(lab[0].y-1.2*p)],bt:[Y(lab[10].y+.35*p),Y(lab[10].y+1.6*p)]};
+ const e=tightEdges(S.b,3000,R.CH,win),pad=6;
+ const tb={x0:(R.x0+(e.l-pad)/R.k)/W,x1:(R.x0+(e.r+pad)/R.k)/W,y0:(R.y0+(e.t-pad)/R.k)/W,y1:(R.y0+(e.bt+pad)/R.k)/W};
+ const F=render(im,meta,tb,3000);finish(bin(F.c,3000,F.CH),3000,F.CH);F.c.meta={W:3000,H:F.CH,a:0,tight:true};return F.c}
+
+let phase=1;
+const okCnt=r=>r.rows.reduce((s,x)=>s+x.s.filter(c=>c.t&&c.t.split('/').every(q=>DICT.includes(q))).length,0);
+async function runOCR(){
+ phase=1;
+ $('#bGo').disabled=$('#bRe').disabled=true;
+ try{
+  stat(.02,'Tahap 1/3: merapikan & meluruskan foto…');const cv=prep(img);
+  const w=await Tesseract.createWorker('eng',1,{logger:m=>{
+   if(m.status==='recognizing text'){if(phase===1)stat(.08+m.progress*.32,'Tahap 1/3: mencari tabel… '+Math.round(m.progress*100)+'%');else if(phase===2)stat(.5+m.progress*.18,'Tahap 2/3: membaca tabel yang dipangkas… '+Math.round(m.progress*100)+'%')}
+   else if(phase===1)stat(.05,'Memuat OCR (butuh internet pertama kali)…')}});
+  await w.setParameters({tessedit_pageseg_mode:'11',preserve_interword_spaces:'1'});
+  const ocr=async c=>{const r=await w.recognize(c),W=c.width;const ws=r.data.words.filter(x=>x.text.trim()).map(x=>({t:x.text.trim(),c:x.confidence,x0:x.bbox.x0/W,x1:x.bbox.x1/W,y:(x.bbox.y0+x.bbox.y1)/2/W}));ws.forEach(x=>x.x=(x.x0+x.x1)/2);return ws};
+  const ws=await ocr(cv);let res=parse(ws),use=cv;readInfo(ws);
+  if(res.ok){
+   phase=2;stat(.45,'Tahap 2/3: memangkas & memperbesar area tabel…');
+   try{
+    const cc=cropTable(img,cv.meta,res),ws2=await ocr(cc),r2=parse(ws2,{tight:true});
+    if(r2.ok&&okCnt(r2)>=4){res=r2;use=cc;readInfo(ws2)}
+   }catch(e){console.warn('pangkas',e)}
+  }
+  try{showDbg(use,res)}catch(e){}
+  if(res.ok){phase=3;try{await refine(w,use,res)}catch(e){console.warn('refine',e)}}
+  await w.terminate();
+  if(res.ok){S.ocr=res.rows;save();rOcr();stat(1,'Selesai. Periksa hasil, terutama sel kuning.')}
+  else stat(1,res.msg);
+ }catch(e){stat(0,'Gagal: '+(e.message||e)+'. Cek koneksi internet lalu coba lagi.')}
+ $('#bGo').disabled=$('#bRe').disabled=false;
+}
+
+/* ---------- Parser tabel berbasis koordinat ---------- */
+const DICT=['SKGA','SKKA','SSTK','SKSJ','IHBK','IHJR','IHAG','IHSJ','RAKD','RAKN','RGSD','RGSN','RGSA 120','RGAP 120','RGBS 120','RGKR 120','RGAB 120','RGSO 120','GSSJ','GAPJ','ISBL','ISLR','ISR','ISB','GS','GPD','GRS','GCIR','KA','SM','ICM','IMGA','IRPM','MKPN','MKGSN','KBGN','RBS','RGA','RISN','PGSS','PGSL','PGSSJ','PGSSS','RGPKD','PMPJ','MTLS','PMSL','PMKF','PMKS','IPKF','IPKS','PABS','PBSS','PSAS','ISKN','ISKP','PMAL','PMBL','PMKL','PMABL','PMLV','PMBG','PMAD','PMPT','GRSJ','GCIJ','IMPR','IPSR','IPTR','IPTK','PGAG','PMPY','PGCI','PMABR','PMMR','PMKR','RSTD 22','RBSD 22','RSTD','RBSD'];
+function lev(a,b){const d=Array.from({length:a.length+1},(_,i)=>[i]);for(let j=1;j<=b.length;j++)d[0][j]=j;
+ for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length]}
+function fix(s){ /* koreksi ke daftar kode dikenal hanya jika ada satu kandidat berjarak 1 */
+ if(DICT.includes(s))return[s,0];
+ const c=DICT.filter(k=>lev(s,k)===1);return c.length===1?[c[0],1]:[s,1]}
+function roman(t){t=t.toUpperCase().replace(/[L1|!]/g,'I');return ROM.indexOf(t)}
+function parse(ws,opt){
+ const nm=w=>w.t.replace(/[^A-Za-z]/g,'');
+ const near=(w,k,n)=>{const t=nm(w).toUpperCase();return t.length>=4&&t.length<=k.length+2&&lev(t,k)<=n};
+ const fl=ws.filter(w=>near(w,'FLAVOUR',3)),op=ws.filter(w=>near(w,'OUTPUT',2));
+ /* 1. label Line (kolom kiri) */
+ const med=a=>a.slice().sort((x,y)=>x-y)[Math.floor(a.length/2)];
+ let m=ws.filter(w=>/^l[il1|]ne/i.test(w.t));
+ if(m.length<3)return{ok:false,msg:'Label "Line" kurang terbaca ('+m.length+'). Foto ulang lebih lurus & terang, atau isi manual.'};
+ const mx=med(m.map(w=>w.x));
+ let C=m.filter(w=>Math.abs(w.x-mx)<.05).sort((a,b)=>a.y-b.y);
+ C=C.filter((w,i)=>!i||w.y-C[i-1].y>.012);
+ const my=fl.length?Math.min(...fl.map(w=>w.y)):0,h=fl.filter(w=>w.y<my+.03).sort((a,b)=>a.x-b.x).slice(0,3);
+ const hy=h.length?Math.max(...h.map(w=>w.y)):0;
+ if(hy)C=C.filter(l=>l.y>hy+.01);else if(C.length>11)C.shift();
+ if(C.length<3)return{ok:false,msg:'Baris Line kurang terbaca. Foto ulang atau isi manual.'};
+ const lx=Math.max(...C.map(l=>l.x1))+.015;
+ const LW=C.map(L=>{let n=0;const mm=L.t.match(/^l[il1|]ne([ivxl1|]+)$/i);if(mm&&/[ivx]/i.test(mm[1]))n=roman(mm[1]);
+  if(!n){const r=ws.filter(w=>w.x0>=L.x1-.01&&w.x1<lx+.02&&Math.abs(w.y-L.y)<.012&&/[IVXivx]/.test(w.t)&&roman(w.t)>0).sort((a,b)=>a.x-b.x)[0];if(r)n=roman(r.t)}
+  return{y:L.y,n}});
+ const lmin=Math.min(...LW.map(l=>l.y)),lmax=Math.max(...LW.map(l=>l.y));
+ const CW=ws.filter(w=>w.c>=40&&w.x0>lx&&(!hy||w.y>hy+.01)&&w.y<lmax+.06&&DICT.includes(w.t.toUpperCase())).map(w=>w.y);
+ /* 2. grid 11 baris: cari (y0,p) yang paling cocok dengan label Line + kode yang terbaca (tahan label hilang) */
+ const sc=(y0,p)=>{let s=0;const hit=new Uint8Array(11);
+  for(const L of LW){const k=Math.round((L.y-y0)/p);if(k<0||k>10){s-=1;continue}const r=Math.abs(L.y-(y0+k*p));if(r>.3*p){s-=1;continue}
+   hit[k]=1;s+=2-r/p*3;if(L.n)s+=(L.n-1===k)?5:-3}
+  for(const y of CW){const k=Math.round((y-y0)/p);if(k<0||k>10)continue;const r=Math.abs(y-(y0+k*p));
+   if(r<.2*p){s+=.5;hit[k]=1}else if(Math.abs(y-(y0+(k+.5)*p))<.2*p)s+=.3}
+  for(let k=0;k<11;k++)if(!hit[k])s-=1;return s};
+ let best=-1e9,y0=lmin,p=.025;
+ const ylo=Math.max(0,hy?hy+.008:lmin-.45);
+ for(let pp=.015;pp<=.045;pp+=.0005)for(let yy=ylo;yy<=lmax;yy+=.001){const s=sc(yy,pp);if(s>best){best=s;y0=yy;p=pp}}
+ if(best<6)return{ok:false,msg:'Baris tabel tidak terdeteksi dengan yakin. Foto ulang lebih lurus & terang, atau isi manual.'};
+ const pts=LW.map(L=>({k:Math.round((L.y-y0)/p),y:L.y})).filter(o=>o.k>=0&&o.k<11&&Math.abs(o.y-(y0+o.k*p))<.3*p);
+ if(pts.length>=3){const kb=pts.reduce((s,o)=>s+o.k,0)/pts.length,yb=pts.reduce((s,o)=>s+o.y,0)/pts.length,den=pts.reduce((s,o)=>s+(o.k-kb)**2,0);
+  if(den>0){const q=pts.reduce((s,o)=>s+(o.k-kb)*(o.y-yb),0)/den;if(Math.abs(q-p)<.2*p){p=q;y0=yb-p*kb}}}
+ const lab=Array.from({length:11},(_,i)=>({n:i+1,y:y0+i*p}));
+ /* 3. kolom Flavour: beberapa kandidat, dipilih yang paling banyak cocok dengan kode terbaca */
+ const gapX=(a,mn)=>{const r=[];a.sort((x,y)=>x.x-y.x).forEach(w=>{if(!r.length||w.x-r[r.length-1].x>mn)r.push(w)});return r};
+ const hf=gapX(fl.filter(w=>w.y<my+.03),.1).slice(0,3),oy=op.length?Math.min(...op.map(w=>w.y)):0,ho=gapX(op.filter(w=>w.y<oy+.03),.1).slice(0,3);
+ const CD=ws.filter(w=>w.c>=40&&w.x0>lx&&w.y>y0-.3*p&&w.y<y0+10.75*p&&DICT.includes(w.t.toUpperCase()));
+ const cands=[];
+ if(hf.length===3){const c=hf.map(w=>w.x),ds=hf.map(f=>{const o=ho.find(o=>o.x>f.x&&o.x-f.x<.15);return o?o.x-f.x:0}).filter(Boolean);cands.push({cen:c,d:ds.length?med(ds):(c[2]-c[0])/2*.27})}
+ if(ho.length===3){const d=(ho[2].x-ho[0].x)/2*.27;cands.push({cen:ho.map(w=>w.x-d),d})}
+ {const xs=CD.map(w=>w.x).sort((a,b)=>a-b),gs=[];xs.forEach(v=>{const g=gs[gs.length-1];if(g&&v-g[g.length-1]<.04)g.push(v);else gs.push([v])});
+  const top=gs.filter(g=>g.length>=2).sort((a,b)=>b.length-a.length).slice(0,3).sort((a,b)=>a[0]-b[0]);
+  if(top.length===3){const c=top.map(g=>med(g));cands.push({cen:c,d:(c[2]-c[0])/2*.27})}}
+ if(opt&&opt.tight)cands.push({cen:[.14,.462,.746],d:.082});
+ if(!cands.length)return{ok:false,msg:'Kolom Flavour tidak terdeteksi. Foto ulang atau isi manual.'};
+ const fit=c=>CD.filter(w=>c.cen.some(x=>Math.abs(w.x-x)<c.d*.55)).length;
+ let cen,d,bf=-1;cands.forEach(c=>{const f=fit(c);if(f>bf){bf=f;cen=c.cen;d=c.d}});
+ /* geser pusat kolom ke posisi kode yang benar-benar terbaca */
+ cen=cen.map(c=>{const a=CD.filter(w=>Math.abs(w.x-c)<d*.6).map(w=>w.x);return a.length>=2?med(a):c});
+ /* 3. petakan kata ke sel (Line, Shift) */
+ const rows=emptyOcr(),cells={};
+ ws.forEach(w=>{
+  const j=cen.findIndex(c=>Math.abs(w.x-c)<d*.55);if(j<0)return;
+  if(near(w,'FLAVOUR',3))return;
+  if(w.c<30&&!DICT.includes(w.t.toUpperCase()))return;
+  if(w.y<lab[0].y-p*.5||w.y>lab[lab.length-1].y+p)return;
+  let L=null;lab.forEach(l=>{if(l.y<=w.y+p*.3)L=l});if(!L)return;
+  (cells[L.n+'_'+j]=cells[L.n+'_'+j]||[]).push(w)});
+ Object.entries(cells).forEach(([k,list])=>{
+  const[n,j]=k.split('_').map(Number),row=rows.find(r=>r.n===n);if(!row)return;
+  list.sort((a,b)=>a.y-b.y);const lines=[];
+  list.forEach(w=>{const l=lines.find(l=>Math.abs(l.y-w.y)<p*.3);if(l)l.w.push(w);else lines.push({y:w.y,w:[w]})});
+  let un=false;const codes=[];
+  lines.forEach(l=>{l.w.sort((a,b)=>a.x-b.x);
+   const ts=l.w.map(w=>w.t.toUpperCase().replace(/[^A-Z0-9]/g,'')).filter(t=>t.length>1);
+   if(!ts.length||/^\d+$/.test(ts[0]))return;
+   let s=ts.join(' ').replace(/^([A-Z]{2,7})(\d{2,3})$/,'$1 $2').replace(/^(\S+)/,q=>/[A-Z]/.test(q)?q.replace(/0/g,'O').replace(/1/g,'I').replace(/5/g,'S'):q);
+   if(!s)return;
+   const parts=s.split(' ');if(parts.length>1&&!/^\d{2,3}$/.test(parts[parts.length-1]))s=parts.reduce((a,b)=>b.length>a.length?b:a);
+   const lowc=Math.min(...l.w.map(w=>w.c))<60,[f,c]=fix(s);
+   if(c||lowc)un=true;codes.push(f)});
+  row.s[j]={t:[...new Set(codes)].join('/'),u:un?1:0}});
+ return{ok:true,rows,cen,d,lab,p,x0:Math.min(...C.map(l=>l.x0))}}
+
+/* Tahap 2: baca ulang setiap sel Flavour satu per satu (jauh lebih akurat daripada satu halaman penuh) */
+const clean=s=>{s=s.toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim().replace(/^([A-Z]{2,7})(\d{2,3})$/,'$1 $2');
+ let t=s.split(' ').filter(q=>q.length>1);while(t.length&&/^\d+$/.test(t[0]))t.shift();s=t.join(' ');t=s.split(' ');if(t.length>1&&!/^\d{2,3}$/.test(t[t.length-1]))s=t.reduce((a,b)=>b.length>a.length?b:a);
+ return s.replace(/^(\S+)/,q=>/[A-Z]/.test(q)?q.replace(/0/g,'O').replace(/1/g,'I').replace(/5/g,'S'):q)};
+async function refine(w,cv,res){
+ const{cen,d,lab,p}=res,W=cv.width,x=cv.getContext('2d',{willReadFrequently:true}),tot=lab.length*3;let k=0;
+ await w.setParameters({tessedit_pageseg_mode:'6',tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 '});
+ for(const L of lab)for(let j=0;j<3;j++){
+  stat(.7+.29*(k++/tot),'Tahap 3/3: memeriksa sel '+k+'/'+tot+'…');
+  const x0=Math.max(0,Math.round((cen[j]-d*.5)*W)),x1=Math.min(W,Math.round((cen[j]+d*.6)*W)),y0=Math.max(0,Math.round((L.y-.3*p)*W)),y1=Math.min(cv.height,Math.round((L.y+.75*p)*W)),cw=x1-x0,ch=y1-y0;
+  if(cw<10||ch<10)continue;
+  const px=x.getImageData(x0,y0,cw,ch).data;let ink=0;for(let i=0;i<px.length;i+=4)if(px[i]<128)ink++;
+  const cell=res.rows[L.n-1].s[j];
+  if(ink/(cw*ch)<.006){cell.t='';cell.u=0;continue}
+  const t=document.createElement('canvas');t.width=cw+60;t.height=ch+60;const tx=t.getContext('2d');tx.fillStyle='#fff';tx.fillRect(0,0,t.width,t.height);tx.drawImage(cv,x0,y0,cw,ch,30,30,cw,ch);
+  const codes=[];let un=false;
+  const grab=r=>r.data.text.split('\n').forEach(l=>{const s=clean(l);if(s.length<2||/^\d+$/.test(s))return;const[f,c]=fix(s);if(c)un=true;if(!codes.includes(f))codes.push(f)});
+  grab(await w.recognize(t));
+  if(!codes.length){await w.setParameters({tessedit_pageseg_mode:'7'});grab(await w.recognize(t));await w.setParameters({tessedit_pageseg_mode:'6'})}
+  const a=codes.join('/'),b=cell.t,ok=q=>!!q&&q.split('/').every(c=>DICT.includes(c)),rt=ink/(cw*ch);
+  if(a&&!un){cell.t=a;cell.u=0}else if(ok(b)){cell.u=0}else if(a){cell.t=a;cell.u=1}else if(b){cell.u=1}else{cell.t='';cell.u=rt>.02?1:0}}}
+
+function showDbg(cv,res){const c=$('#dbg'),k=1000/cv.width;c.width=1000;c.height=Math.round(cv.height*k);const x=c.getContext('2d');x.drawImage(cv,0,0,c.width,c.height);
+ if(res&&res.ok){x.strokeStyle='red';x.lineWidth=1.5;res.lab.forEach(L=>res.cen.forEach(cx=>x.strokeRect((cx-res.d*.5)*cv.width*k,(L.y-.3*res.p)*cv.width*k,res.d*1.1*cv.width*k,1.05*res.p*cv.width*k)))}
+ $('#dbgBox').hidden=false}
+
+function readInfo(ws){
+ const dt=ws.find(w=>/^\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}$/.test(w.t));if(dt)S.info.date=dt.t;
+ const dy=ws.find(w=>/^(senin|selasa|rabu|kamis|jumat|sabtu|minggu)$/i.test(w.t.replace(/[^A-Za-z]/g,'')));
+ if(dy){const t=dy.t.replace(/[^A-Za-z]/g,'');S.info.day=t[0].toUpperCase()+t.slice(1).toLowerCase()}
+ const nm=ws.find(w=>/^(nomer|nomor)/i.test(w.t));
+ if(nm){const n=ws.filter(w=>/^\d{2,5}$/.test(w.t)&&w.x>nm.x&&Math.abs(w.y-nm.y)<.02).sort((a,b)=>a.x-b.x)[0];if(n)S.info.no=n.t}
+ $('#iDay').value=S.info.day;$('#iDate').value=S.info.date;$('#iNo').value=S.info.no;save()}
+
+/* ---------- Buku digital ---------- */
+function rBook(){
+ const cols=vis();
+ $('#bookBox').innerHTML=[0,1,2].map(s=>`<div class="shift"><h3>SHIFT ${s+1}</h3><div class="sc"><table><thead><tr><th>${esc(S.cfg.lt)}</th><th>${esc(S.cfg.ft)}</th>${cols.map(c=>`<th>${esc(c.t)}</th>`).join('')}<th></th></tr></thead><tbody>
+ ${S.book[s].map((r,i)=>`<tr><td><input data-s="${s}" data-i="${i}" data-k="n" value="${esc(r.n)}" style="min-width:50px"></td><td><input data-s="${s}" data-i="${i}" data-k="f" value="${esc(r.f)}" style="min-width:110px"></td>${cols.map(c=>`<td><input data-s="${s}" data-i="${i}" data-k="${c.id}" value="${esc(r.v[c.id])}"></td>`).join('')}<td><button data-del="${s}_${i}">✕</button></td></tr>`).join('')}
+ </tbody></table></div><div class="row"><button data-add="${s}">+ Baris</button></div></div>`).join('')}
+$('#bookBox').oninput=e=>{const t=e.target.dataset;if(t.k==null)return;const r=S.book[t.s][t.i];if(t.k==='n'||t.k==='f')r[t.k]=e.target.value;else r.v[t.k]=e.target.value;save()};
+$('#bookBox').onclick=e=>{const t=e.target.dataset;
+ if(t.add!=null){S.book[t.add].push({n:'',f:'',v:{}});}
+ else if(t.del!=null){const[s,i]=t.del.split('_');S.book[s].splice(i,1)}else return;save();rBook()};
+
+/* ---------- Pengaturan kolom ---------- */
+function rSet(){const c=S.cfg;
+ $('#setBox').innerHTML=`<div class="sr" style="grid-template-columns:1fr 1fr"><input data-f="lt" value="${esc(c.lt)}" aria-label="Judul kolom Line"><input data-f="ft" value="${esc(c.ft)}" aria-label="Judul kolom Flavour"></div><p class="hint">Setiap kolom: tampil, judul, nilai awal, naik, turun, hapus.</p>`+
+ c.cols.map((k,i)=>`<div class="sr"><input type="checkbox" data-i="${i}" data-f="on" ${k.on?'checked':''} style="width:22px"><input data-i="${i}" data-f="t" value="${esc(k.t)}"><input data-i="${i}" data-f="d" value="${esc(k.d)}" placeholder="awal"><button data-up="${i}">↑</button><button data-dn="${i}">↓</button><button data-rm="${i}">✕</button></div>`).join('')}
+$('#setBox').oninput=e=>{const t=e.target,f=t.dataset.f;if(!f)return;if(t.dataset.i==null)S.cfg[f]=t.value;else S.cfg.cols[t.dataset.i][f]=f==='on'?(t.checked?1:0):t.value;save()};
+$('#setBox').onclick=e=>{const t=e.target.dataset,a=S.cfg.cols;
+ if(t.up!=null&&+t.up>0){const i=+t.up;[a[i-1],a[i]]=[a[i],a[i-1]]}
+ else if(t.dn!=null&&+t.dn<a.length-1){const i=+t.dn;[a[i+1],a[i]]=[a[i],a[i+1]]}
+ else if(t.rm!=null){if(confirm('Hapus kolom ini?'))a.splice(+t.rm,1)}else return;save();rSet()};
+$('#bAdd').onclick=()=>{S.cfg.cols.push({id:'c'+Date.now(),t:'Kolom baru',d:'',on:1});save();rSet()};
+$('#bSet').onclick=()=>{rSet();$('#dSet').showModal()};
+$('#bSetOk').onclick=()=>{$('#dSet').close();rBook();rPrev()};
+$('#bClear').onclick=()=>{if(confirm('Hapus semua data (hasil OCR, buku digital, info jadwal)? Pengaturan kolom tetap disimpan.')){const c=S.cfg;S=fresh();S.cfg=c;save();location.reload()}};
+
+/* ---------- Ekspor (digambar langsung ke canvas) ---------- */
+function pages(){
+ /* seluruh hasil dalam SATU gambar (tinggi menyesuaikan jumlah baris) */
+ const W=1240,M=60,RH=48,cols=vis(),n=S.book.reduce((s,r)=>s+r.length,0),H=Math.max(600,200+3*(RH*2+34)+n*RH+M);
+ const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');
+ g.fillStyle='#fff';g.fillRect(0,0,W,H);
+ const gr=g.createLinearGradient(0,0,W,0);gr.addColorStop(0,'#111');gr.addColorStop(1,'#c9a227');g.fillStyle=gr;g.fillRect(0,0,W,110);
+ g.textBaseline='middle';g.textAlign='left';g.fillStyle='#fff';g.font='bold 46px sans-serif';g.fillText('FINISH GOOD ANALYSIS',M,56);
+ g.fillStyle='#111';g.font='28px sans-serif';g.fillText('Hari/Tanggal: '+(S.info.day+' '+S.info.date).trim(),M,152);g.textAlign='right';g.fillText('No. Jadwal: '+S.info.no,W-M,152);
+ const cw=cols.length?(W-2*M-440)/cols.length:0,wd=[110,330,...cols.map(()=>cw)],hd=[S.cfg.lt,S.cfg.ft,...cols.map(c=>c.t)];let y=195;
+ const row=(a,head)=>{let x=M;a.forEach((t,i)=>{const w=wd[i];if(head){g.fillStyle='#111';g.fillRect(x,y,w,RH)}
+  g.strokeStyle='#999';g.lineWidth=1.5;g.strokeRect(x,y,w,RH);g.fillStyle=head?'#f5d76e':'#111';let s=28;g.textAlign='center';
+  do{g.font=(head?'bold ':'')+s+'px sans-serif';s-=2}while(g.measureText(t).width>w-14&&s>12);g.fillText(String(t??''),x+w/2,y+RH/2+2);x+=w});y+=RH};
+ S.book.forEach((rows,s)=>{g.fillStyle='#c9a227';g.fillRect(M,y,W-2*M,RH);g.fillStyle='#111';g.font='bold 30px sans-serif';g.textAlign='left';g.fillText('SHIFT '+(s+1),M+14,y+RH/2);y+=RH;
+  row(hd,1);rows.forEach(r=>row([r.n,r.f,...cols.map(c=>r.v[c.id]||'')],0));y+=34});
+ return[cv]}
+function rPrev(){const b=$('#prev');b.innerHTML='';pages().forEach(c=>b.appendChild(c))}
+const blobs=cs=>Promise.all(cs.map(c=>new Promise(r=>c.toBlob(r,'image/png'))));
+const fname=()=>'FinishGood_'+(S.info.date||'jadwal').replace(/[^\w-]/g,'-');
+function dl(b,n){const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+$('#bPng').onclick=async()=>{const bs=await blobs(pages());bs.forEach((b,i)=>setTimeout(()=>dl(b,fname()+(bs.length>1?'_h'+(i+1):'')+'.png'),i*400))};
+$('#bShare').onclick=async()=>{const bs=await blobs(pages()),fs=bs.map((b,i)=>new File([b],fname()+'_'+(i+1)+'.png',{type:'image/png'}));
+ if(navigator.canShare&&navigator.canShare({files:fs})){try{await navigator.share({files:fs,title:'Finish Good Analysis'})}catch(e){}}
+ else{alert('Perangkat tidak mendukung berbagi langsung. Gambar diunduh, silakan kirim lewat WhatsApp.');bs.forEach((b,i)=>dl(b,fname()+'_'+(i+1)+'.png'))}};
+$('#bPrint').onclick=()=>{const im=pages().map(c=>'<img src="'+c.toDataURL('image/jpeg',.92)+'">').join(''),w=window.open('');
+ w.document.write('<style>@page{margin:0}body{margin:0}img{width:100%;display:block;page-break-after:always}</style>'+im);w.document.close();setTimeout(()=>w.print(),600)};
+$('#bPdf').onclick=()=>{const cs=pages(),enc=new TextEncoder(),parts=[],off=[];let len=0;
+ const add=d=>{const b=typeof d==='string'?enc.encode(d):d;parts.push(b);len+=b.length};
+ add('%PDF-1.4\n');off[1]=len;add('1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n');
+ off[2]=len;add('2 0 obj\n<</Type/Pages/Count '+cs.length+'/Kids['+cs.map((_,k)=>(3+3*k)+' 0 R').join(' ')+']>>\nendobj\n');
+ cs.forEach((c,k)=>{const bin=atob(c.toDataURL('image/jpeg',.92).split(',')[1]),jb=Uint8Array.from(bin,x=>x.charCodeAt(0)),a=3+3*k,ph=Math.round(595*c.height/c.width),ct='q 595 0 0 '+ph+' 0 0 cm /Im0 Do Q';
+  off[a]=len;add(a+' 0 obj\n<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 '+ph+']/Resources<</XObject<</Im0 '+(a+2)+' 0 R>>>>/Contents '+(a+1)+' 0 R>>\nendobj\n');
+  off[a+1]=len;add((a+1)+' 0 obj\n<</Length '+ct.length+'>>\nstream\n'+ct+'\nendstream\nendobj\n');
+  off[a+2]=len;add((a+2)+' 0 obj\n<</Type/XObject/Subtype/Image/Width '+c.width+'/Height '+c.height+'/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length '+jb.length+'>>\nstream\n');add(jb);add('\nendstream\nendobj\n')});
+ const n=3+3*cs.length,xr=len;let x='xref\n0 '+n+'\n0000000000 65535 f \n';for(let i=1;i<n;i++)x+=String(off[i]).padStart(10,'0')+' 00000 n \n';
+ add(x+'trailer\n<</Size '+n+'/Root 1 0 R>>\nstartxref\n'+xr+'\n%%EOF');dl(new Blob(parts,{type:'application/pdf'}),fname()+'.pdf')};
+
+rOcr();
+if('serviceWorker'in navigator){
+ const had=!!navigator.serviceWorker.controller;let rl=false;
+ navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!rl){rl=true;location.reload()}});
+ addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').then(r=>r.update()).catch(()=>{}))}
+
+</script>
+</body></html>
