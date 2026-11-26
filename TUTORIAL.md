@@ -62,7 +62,7 @@ Upload ulang semua file (timpa), lalu di HP buka aplikasi, tutup penuh, dan buka
 Proses memakan waktu sekitar 30–90 detik di HP.
 
 ## I. Cara memastikan versi terbaru
-Di bawah judul aplikasi harus tertulis **versi 2.2 · OCR per sel**. Jika tidak tertulis, berarti HP masih memakai versi lama:
+Di bawah judul aplikasi harus tertulis **versi 2.3 · OCR per sel**. Jika tidak tertulis, berarti HP masih memakai versi lama:
 1. Pastikan file di GitHub sudah ter-upload (buka repository, lihat tanggal commit terakhir) dan tab **Actions** menunjukkan deploy Pages berwarna hijau.
 2. Di Chrome HP: buka alamat GitHub Pages → menu ⋮ → Setelan → Setelan situs → Semua situs → cari alamat tersebut → **Hapus & reset**.
 3. Jika terpasang di layar utama: hapus ikon aplikasi, buka alamat lagi di Chrome, lalu **Install app** ulang.
